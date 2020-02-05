@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <iostream>
 #include <fstream>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
 #include "include\btrieveCpp.h"
 using namespace std;
@@ -12,19 +15,63 @@ static char* btrieveFileName = (char*)"squaresAndSquareRoots.btr";
 #define MIN_X 0
 #define MAX_X 255
 #pragma pack(1)
+
 typedef struct {
     uint8_t x;
     uint16_t xSquared;
     double xSquareRoot;
 } record_t;
+
+typedef struct {
+    char exeName[50];
+    char dateTime[19];
+    char userName[50];
+} executableInfo;
+
 #pragma pack()
+// Disables a warning about using 
+// localtime, for our sample code this is fine
+#pragma warning(disable : 4996) 
+
 typedef uint8_t _key_t;
+
+string getDateTime() {
+    auto t = std::time(nullptr);
+    auto tm = *localtime(&t);
+    std::ostringstream oss;
+    oss << put_time(&tm, "%m-%d-%Y %H:%M:%S");
+    return oss.str();
+}
+
+static Btrieve::StatusCode
+createConfigFile(BtrieveClient* btrieveClient)
+{
+    Btrieve::StatusCode status;
+    BtrieveFileAttributes btrieveFileAttributes;
+    // If SetFixedRecordLength() fails.
+    cout << getDateTime() << endl;
+    if ((status = btrieveFileAttributes.SetFixedRecordLength(sizeof(executableInfo))) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveFileAttributes::SetFixedRecordLength():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+    // If FileCreate() fails.
+    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, btrieveFileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+leave:
+    return status;
+}
+
 static Btrieve::StatusCode
 createFile(BtrieveClient* btrieveClient)
 {
     Btrieve::StatusCode status;
     BtrieveFileAttributes btrieveFileAttributes;
     // If SetFixedRecordLength() fails.
+    cout << getDateTime() << endl;
     if ((status = btrieveFileAttributes.SetFixedRecordLength(sizeof(record_t))) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         printf("Error: BtrieveFileAttributes::SetFixedRecordLength():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
@@ -39,6 +86,7 @@ createFile(BtrieveClient* btrieveClient)
 leave:
     return status;
 }
+
 static Btrieve::StatusCode
 openFile(BtrieveClient* btrieveClient, BtrieveFile* btrieveFile)
 {
