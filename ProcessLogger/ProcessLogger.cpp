@@ -23,10 +23,12 @@ typedef struct {
 } record_t;
 
 typedef struct {
-    char exeName[50];
-    char dateTime[19];
-    char userName[50];
+    string exeName;
+    string dateTime;
+    string userName;
 } executableInfo;
+
+const int TOTAL_EXEINFO_LENGTH = 199;
 
 #pragma pack()
 // Disables a warning about using 
@@ -44,13 +46,13 @@ string getDateTime() {
 }
 
 static Btrieve::StatusCode
-createConfigFile(BtrieveClient* btrieveClient)
+createInfoFile(BtrieveClient* btrieveClient)
 {
     Btrieve::StatusCode status;
     BtrieveFileAttributes btrieveFileAttributes;
     // If SetFixedRecordLength() fails.
     cout << getDateTime() << endl;
-    if ((status = btrieveFileAttributes.SetFixedRecordLength(sizeof(executableInfo))) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = btrieveFileAttributes.SetFixedRecordLength(TOTAL_EXEINFO_LENGTH)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         printf("Error: BtrieveFileAttributes::SetFixedRecordLength():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
@@ -100,6 +102,41 @@ openFile(BtrieveClient* btrieveClient, BtrieveFile* btrieveFile)
 leave:
     return status;
 }
+
+bool ValidateStructLengths(string exeName, string dateTime, string userName) {
+    if (exeName.length() > 50) { return false; }
+    if (dateTime.length() > 50) { return false; }
+    if (userName.length() > 50) { return false; }
+    return true;
+}
+
+static Btrieve::StatusCode
+addRecordToInfoFile(BtrieveFile* btrieveFile, string exeName, string dateTime, string userName)
+{
+    Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
+
+    //Check the length of each item in executableInfo 
+    if (!ValidateStructLengths(exeName,dateTime,userName)) {
+        status = Btrieve::STATUS_CODE_DATALENGTH_ERROR;
+        printf("Error: bad value! Cannot continue:%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+    }
+
+    executableInfo record;
+    record.exeName = exeName;
+    record.dateTime = dateTime;
+    record.userName = userName;
+    // If RecordCreate() fails.
+    if ((status = btrieveFile->RecordCreate((char*)&record, TOTAL_EXEINFO_LENGTH)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveFile::RecordCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+    
+leave:
+    return status;
+}
+
+
 static Btrieve::StatusCode
 loadFile(BtrieveFile* btrieveFile)
 {
@@ -121,6 +158,7 @@ loadFile(BtrieveFile* btrieveFile)
 leave:
     return status;
 }
+
 static Btrieve::StatusCode
 closeFile(BtrieveClient* btrieveClient, BtrieveFile* btrieveFile)
 {
