@@ -325,6 +325,9 @@ __pycache__/
 *.odx.cs
 *.xsd.cs
 
+# IGNORE file created by Btrieve example
+*.INFO
+
 # OpenCover UI analysis results
 OpenCover/
 

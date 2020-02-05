@@ -12,6 +12,8 @@
 using namespace std;
 
 static char* btrieveFileName = (char*)"squaresAndSquareRoots.btr";
+string exeInfoFileName = "exe.info";
+
 #define MIN_X 0
 #define MAX_X 255
 #pragma pack(1)
@@ -46,7 +48,7 @@ string getDateTime() {
 }
 
 static Btrieve::StatusCode
-createInfoFile(BtrieveClient* btrieveClient)
+createInfoFile(BtrieveClient* btrieveClient, const char* fileName)
 {
     Btrieve::StatusCode status;
     BtrieveFileAttributes btrieveFileAttributes;
@@ -58,7 +60,7 @@ createInfoFile(BtrieveClient* btrieveClient)
         goto leave;
     }
     // If FileCreate() fails.
-    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, btrieveFileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, fileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
@@ -68,7 +70,7 @@ leave:
 }
 
 static Btrieve::StatusCode
-createFile(BtrieveClient* btrieveClient)
+createFile(BtrieveClient* btrieveClient, const char* fileName)
 {
     Btrieve::StatusCode status;
     BtrieveFileAttributes btrieveFileAttributes;
@@ -80,7 +82,7 @@ createFile(BtrieveClient* btrieveClient)
         goto leave;
     }
     // If FileCreate() fails.
-    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, btrieveFileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, fileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
@@ -90,11 +92,11 @@ leave:
 }
 
 static Btrieve::StatusCode
-openFile(BtrieveClient* btrieveClient, BtrieveFile* btrieveFile)
+openFile(BtrieveClient* btrieveClient, BtrieveFile* btrieveFile, const char* fileName)
 {
     Btrieve::StatusCode status;
     // If FileOpen() fails.
-    if ((status = btrieveClient->FileOpen(btrieveFile, btrieveFileName, NULL, Btrieve::OPEN_MODE_NORMAL)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = btrieveClient->FileOpen(btrieveFile, fileName, NULL, Btrieve::OPEN_MODE_NORMAL)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         printf("Error: BtrieveClient::FileOpen():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
@@ -229,6 +231,33 @@ leave:
     return status;
 }
 
+Btrieve::StatusCode DoMyWork(BtrieveClient btrieveClient, BtrieveFile btrieveFile) {
+
+    Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
+    if ((status = createInfoFile(&btrieveClient, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        return status;
+    }
+    // If openFile() fails.
+    if ((status = openFile(&btrieveClient, &btrieveFile, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        return status;
+    }
+
+    // If loadFile() fails.
+    if ((status = addRecordToInfoFile(&btrieveFile, "my.exe",getDateTime(),"user.name")) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        return status;
+    }
+
+    if ((status = closeFile(&btrieveClient, &btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        return status;
+    }
+
+    return status;
+}
+
 int main(int argc, char* argv[], char* envp[])
 {
 
@@ -243,6 +272,12 @@ int main(int argc, char* argv[], char* envp[])
     BtrieveClient btrieveClient(0x4232, 0);
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_UNKNOWN;
     BtrieveFile btrieveFile;
+    BtrieveFile bFile;
+
+    if ((status = DoMyWork(btrieveClient, bFile)) != Btrieve::STATUS_CODE_NO_ERROR) {
+        goto leave;
+    }
+
     _key_t key;
     uint64_t integerValue;
     // If the incorrect number of arguments were given.
@@ -260,12 +295,12 @@ int main(int argc, char* argv[], char* envp[])
     }
     key = (_key_t)integerValue;
     // If createFile() fails.
-    if ((status = createFile(&btrieveClient)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = createFile(&btrieveClient, btrieveFileName)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         goto leave;
     }
     // If openFile() fails.
-    if ((status = openFile(&btrieveClient, &btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = openFile(&btrieveClient, &btrieveFile, btrieveFileName)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         goto leave;
     }
@@ -289,7 +324,7 @@ int main(int argc, char* argv[], char* envp[])
     {
         goto leave;
     }
-    // If deleteFile() fails.
+     //If deleteFile() fails.
     if ((status = deleteFile(&btrieveClient)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         goto leave;
