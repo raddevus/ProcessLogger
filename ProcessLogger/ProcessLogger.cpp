@@ -48,28 +48,6 @@ string getDateTime() {
 }
 
 static Btrieve::StatusCode
-createInfoFile(BtrieveClient* btrieveClient, const char* fileName)
-{
-    Btrieve::StatusCode status;
-    BtrieveFileAttributes btrieveFileAttributes;
-    // If SetFixedRecordLength() fails.
-    cout << getDateTime() << endl;
-    if ((status = btrieveFileAttributes.SetFixedRecordLength(TOTAL_EXEINFO_LENGTH)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        printf("Error: BtrieveFileAttributes::SetFixedRecordLength():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
-        goto leave;
-    }
-    // If FileCreate() fails.
-    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, fileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
-        goto leave;
-    }
-leave:
-    return status;
-}
-
-static Btrieve::StatusCode
 createFile(BtrieveClient* btrieveClient, const char* fileName)
 {
     Btrieve::StatusCode status;
@@ -231,14 +209,36 @@ leave:
     return status;
 }
 
-Btrieve::StatusCode DoMyWork(BtrieveClient btrieveClient, BtrieveFile btrieveFile) {
+static Btrieve::StatusCode
+createInfoFile(BtrieveClient* btrieveClient, const char* fileName)
+{
+    Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;;
+    BtrieveFileAttributes btrieveFileAttributes;
+    // If SetFixedRecordLength() fails.
+    cout << getDateTime() << endl;
+    if ((status = btrieveFileAttributes.SetFixedRecordLength(TOTAL_EXEINFO_LENGTH)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveFileAttributes::SetFixedRecordLength():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+    // If FileCreate() fails.
+    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, fileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+leave:
+    return status;
+}
+
+static Btrieve::StatusCode DoMyWork(BtrieveClient& btrieveClient, BtrieveFile& btrieveFile) {
 
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
     if ((status = createInfoFile(&btrieveClient, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         return status;
     }
-    // If openFile() fails.
+     //If openFile() fails.
     if ((status = openFile(&btrieveClient, &btrieveFile, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         return status;
@@ -258,7 +258,7 @@ Btrieve::StatusCode DoMyWork(BtrieveClient btrieveClient, BtrieveFile btrieveFil
     return status;
 }
 
-int main(int argc, char* argv[], char* envp[])
+int main(int argc, char* argv[])
 {
 
     if (argc < 2) {
@@ -272,12 +272,16 @@ int main(int argc, char* argv[], char* envp[])
     BtrieveClient btrieveClient(0x4232, 0);
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_UNKNOWN;
     BtrieveFile btrieveFile;
-    BtrieveFile bFile;
+    //BtrieveFile bFile;
 
-    if ((status = DoMyWork(btrieveClient, bFile)) != Btrieve::STATUS_CODE_NO_ERROR) {
+    if ((status = DoMyWork(btrieveClient, btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR) {
+        cout << "wasn't what you thought" << endl;
         goto leave;
     }
-
+    
+    cout << "return 0" << endl;
+    
+    cout << "can't touch THIS!" << endl;
     _key_t key;
     uint64_t integerValue;
     // If the incorrect number of arguments were given.
