@@ -163,12 +163,10 @@ retrieveInfoRecord(BtrieveFile* btrieveFile, string key)
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
     executableInfo record;
     // If RecordRetrieve() fails.
-    char keyCopy[51];
 
-    strcpy(keyCopy, key.c_str());
     if (btrieveFile->RecordRetrieve(Btrieve::COMPARISON_EQUAL,
-        Btrieve::INDEX_1, keyCopy, 
-        key.length() *sizeof(char), 
+        Btrieve::INDEX_1, key.c_str(), 
+        key.size(), 
         (char*)&record, TOTAL_EXEINFO_RECORD_LENGTH ) != TOTAL_EXEINFO_RECORD_LENGTH)//sizeof(record))
     {
         status = btrieveFile->GetLastStatusCode();
