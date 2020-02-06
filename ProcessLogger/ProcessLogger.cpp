@@ -215,9 +215,10 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    if (argc < 3 || argc > 3) {
-        cout << "### Must provide two arguments.  ####" << endl;
-        cout << "Usage: $/>ProcessLogger [exe_name] [user_name]" << endl;
+    if (argc < 2 || argc > 3) {
+        cout << "### Must provide one or two arguments.  ####" << endl;
+        cout << "Usage: Add record, $/>ProcessLogger [exe_name] [user_name]" << endl;
+        cout << "Usage: Get record, $/>ProcessLogger [exe_name]" << endl;
         return -1;
     }
 
