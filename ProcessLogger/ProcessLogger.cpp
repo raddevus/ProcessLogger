@@ -18,6 +18,8 @@ string exeInfoFileName = "exe.info";
 #define MAX_X 255
 #pragma pack(1)
 
+int recordSize = 0;
+
 typedef struct {
     uint8_t x;
     uint16_t xSquared;
@@ -25,12 +27,12 @@ typedef struct {
 } record_t;
 
 typedef struct {
-    string exeName;
-    string dateTime;
-    string userName;
+    char exeName[50];
+    char dateTime[20];
+    char userName[50];
 } executableInfo;
 
-const int TOTAL_EXEINFO_LENGTH = 199;
+const int TOTAL_EXEINFO_LENGTH = 120;
 
 #pragma pack()
 // Disables a warning about using 
@@ -85,8 +87,9 @@ leave:
 
 bool ValidateStructLengths(string exeName, string dateTime, string userName) {
     if (exeName.length() > 50) { return false; }
-    if (dateTime.length() > 50) { return false; }
+    if (dateTime.length() > 19) { return false; }
     if (userName.length() > 50) { return false; }
+    recordSize = userName.length() + dateTime.length() + exeName.length();
     return true;
 }
 
@@ -102,9 +105,9 @@ addRecordToInfoFile(BtrieveFile* btrieveFile, string exeName, string dateTime, s
     }
 
     executableInfo record;
-    record.exeName = exeName;
-    record.dateTime = dateTime;
-    record.userName = userName;
+    sprintf(record.exeName,"%s",exeName.c_str());
+    sprintf(record.dateTime, "%s",dateTime.c_str());
+    sprintf(record.userName,"%s",userName.c_str());
     // If RecordCreate() fails.
     if ((status = btrieveFile->RecordCreate((char*)&record, TOTAL_EXEINFO_LENGTH)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
@@ -152,6 +155,7 @@ closeFile(BtrieveClient* btrieveClient, BtrieveFile* btrieveFile)
 leave:
     return status;
 }
+
 static Btrieve::StatusCode
 deleteFile(BtrieveClient* btrieveClient)
 {
@@ -231,6 +235,59 @@ leave:
     return status;
 }
 
+static Btrieve::StatusCode
+createInfoIndex(BtrieveFile* btrieveFile)
+{
+    Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
+    BtrieveIndexAttributes btrieveIndexAttributes;
+    BtrieveKeySegment btrieveKeySegment;
+    // If SetField() fails.
+    if ((status = btrieveKeySegment.SetField(0, 1, Btrieve::DATA_TYPE_LSTRING)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveKeySegment::SetField():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+    // If AddKeySegment() fails.
+    if ((status = btrieveIndexAttributes.AddKeySegment(&btrieveKeySegment)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveIndexAttributes::AddKeySegment():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+    // If IndexCreate() fails.
+    if ((status = btrieveFile->IndexCreate(&btrieveIndexAttributes)) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        printf("Error: BtrieveFile::IndexCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+leave:
+    return status;
+}
+
+static Btrieve::StatusCode
+retrieveInfoRecord(BtrieveFile* btrieveFile, string key)
+{
+    Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
+    executableInfo record;
+    // If RecordRetrieve() fails.
+    char keyCopy[50];
+
+    strcpy(keyCopy, key.c_str());
+    if (btrieveFile->RecordRetrieve(Btrieve::COMPARISON_EQUAL,
+        Btrieve::INDEX_1, keyCopy, 
+        key.length() *sizeof(char), 
+        (char*)&record, TOTAL_EXEINFO_LENGTH ) != TOTAL_EXEINFO_LENGTH)//sizeof(record))
+    {
+        status = btrieveFile->GetLastStatusCode();
+        printf("Error: BtrieveFile::RecordRetrieve():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
+    }
+    status = btrieveFile->GetLastStatusCode();
+    printf("record: (%s, %s, %s)\n", record.exeName, record.userName, record.dateTime);
+    //printf("record: (%s, %s, %s)\n", record.exeName, record.dateTime, record.userName);
+leave:
+    return status;
+}
+
 static Btrieve::StatusCode DoMyWork(BtrieveClient& btrieveClient, BtrieveFile& btrieveFile) {
 
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
@@ -244,8 +301,21 @@ static Btrieve::StatusCode DoMyWork(BtrieveClient& btrieveClient, BtrieveFile& b
         return status;
     }
 
+    if ((status = createInfoIndex(&btrieveFile )) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        return status;
+    }
+
     // If loadFile() fails.
+    char outDate[19];
+    //strcpy(outDate, getDateTime());
     if ((status = addRecordToInfoFile(&btrieveFile, "my.exe",getDateTime(),"user.name")) != Btrieve::STATUS_CODE_NO_ERROR)
+    //if ((status = addRecordToInfoFile(&btrieveFile, "my.exe","garbage" , "user.name")) != Btrieve::STATUS_CODE_NO_ERROR)
+    {
+        return status;
+    }
+
+    if ((status = retrieveInfoRecord(&btrieveFile, "my.exe")) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         return status;
     }
@@ -278,8 +348,6 @@ int main(int argc, char* argv[])
         cout << "wasn't what you thought" << endl;
         goto leave;
     }
-    
-    cout << "return 0" << endl;
     
     cout << "can't touch THIS!" << endl;
     _key_t key;

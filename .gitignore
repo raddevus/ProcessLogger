@@ -327,6 +327,7 @@ __pycache__/
 
 # IGNORE file created by Btrieve example
 *.INFO
+*.BTR
 
 # OpenCover UI analysis results
 OpenCover/
