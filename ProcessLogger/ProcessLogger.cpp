@@ -27,12 +27,12 @@ typedef struct {
 } record_t;
 
 typedef struct {
-    char exeName[50];
+    char exeName[51];
     char dateTime[20];
-    char userName[50];
+    char userName[51];
 } executableInfo;
 
-const int TOTAL_EXEINFO_LENGTH = 120;
+const int TOTAL_EXEINFO_LENGTH = 122;
 
 #pragma pack()
 // Disables a warning about using 
@@ -86,9 +86,9 @@ leave:
 }
 
 bool ValidateStructLengths(string exeName, string dateTime, string userName) {
-    if (exeName.length() > 50) { return false; }
-    if (dateTime.length() > 19) { return false; }
-    if (userName.length() > 50) { return false; }
+    if (exeName.length() > 50) { printf("exeName value too long (>50 chars).\n");  return false; }
+    if (dateTime.length() > 19) { printf("dateTime value too long (>19 chars).\n"); return false; }
+    if (userName.length() > 50) { printf("userName value too long (>50 chars).\n"); return false; }
     recordSize = userName.length() + dateTime.length() + exeName.length();
     return true;
 }
@@ -102,6 +102,7 @@ addRecordToInfoFile(BtrieveFile* btrieveFile, string exeName, string dateTime, s
     if (!ValidateStructLengths(exeName,dateTime,userName)) {
         status = Btrieve::STATUS_CODE_DATALENGTH_ERROR;
         printf("Error: bad value! Cannot continue:%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+        goto leave;
     }
 
     executableInfo record;
@@ -269,7 +270,7 @@ retrieveInfoRecord(BtrieveFile* btrieveFile, string key)
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
     executableInfo record;
     // If RecordRetrieve() fails.
-    char keyCopy[50];
+    char keyCopy[51];
 
     strcpy(keyCopy, key.c_str());
     if (btrieveFile->RecordRetrieve(Btrieve::COMPARISON_EQUAL,
@@ -288,119 +289,56 @@ leave:
     return status;
 }
 
-static Btrieve::StatusCode DoMyWork(BtrieveClient& btrieveClient, BtrieveFile& btrieveFile) {
+int main(int argc, char* argv[])
+{
+
+    if (argc < 3 || argc > 3) {
+        cout << "### Must provide two arguments.  ####" << endl;
+        cout << "Usage: $/>ProcessLogger [exe_name] [user_name]" << endl;
+        return -1;
+    }
+
+    char* processName = argv[1];
+    printf("%s\n", processName);
+
+    char* user = argv[2];
+    printf("%s\n", user);
+
+    BtrieveClient btrieveClient(0x4232, 0);
+    BtrieveFile btrieveFile;
+    //BtrieveFile bFile;
 
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
     if ((status = createInfoFile(&btrieveClient, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        return status;
+        goto leave;
     }
-     //If openFile() fails.
+    //If openFile() fails.
     if ((status = openFile(&btrieveClient, &btrieveFile, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        return status;
+        goto leave;
     }
 
-    if ((status = createInfoIndex(&btrieveFile )) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = createInfoIndex(&btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        return status;
+        goto leave;
     }
 
-    // If loadFile() fails.
-    char outDate[19];
-    //strcpy(outDate, getDateTime());
-    if ((status = addRecordToInfoFile(&btrieveFile, "my.exe",getDateTime(),"user.name")) != Btrieve::STATUS_CODE_NO_ERROR)
-    //if ((status = addRecordToInfoFile(&btrieveFile, "my.exe","garbage" , "user.name")) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = addRecordToInfoFile(&btrieveFile, processName, getDateTime(), user)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        return status;
+        goto leave;
     }
 
-    if ((status = retrieveInfoRecord(&btrieveFile, "my.exe")) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = retrieveInfoRecord(&btrieveFile, processName)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        return status;
+        goto leave;
     }
 
     if ((status = closeFile(&btrieveClient, &btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        return status;
+        goto leave;
     }
 
-    return status;
-}
-
-int main(int argc, char* argv[])
-{
-
-    if (argc < 2) {
-        cout << "Must provide one argument." << endl;
-        return -1;
-    }
-    if (argc >= 2) {
-        cout << "Using first argument as file data." << endl;
-    }
-
-    BtrieveClient btrieveClient(0x4232, 0);
-    Btrieve::StatusCode status = Btrieve::STATUS_CODE_UNKNOWN;
-    BtrieveFile btrieveFile;
-    //BtrieveFile bFile;
-
-    if ((status = DoMyWork(btrieveClient, btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR) {
-        cout << "wasn't what you thought" << endl;
-        goto leave;
-    }
-    
-    cout << "can't touch THIS!" << endl;
-    _key_t key;
-    uint64_t integerValue;
-    // If the incorrect number of arguments were given.
-    if (argc != 2)
-    {
-        printf("Usage: %s uint8_value\n", argv[0]);
-        goto leave;
-    }
-    integerValue = atoi(argv[1]);
-    // If integerValue is out of range.
-    if ((integerValue < MIN_X) || (integerValue > MAX_X))
-    {
-        printf("Usage: %s uint8_value\n", argv[0]);
-        goto leave;
-    }
-    key = (_key_t)integerValue;
-    // If createFile() fails.
-    if ((status = createFile(&btrieveClient, btrieveFileName)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
-    // If openFile() fails.
-    if ((status = openFile(&btrieveClient, &btrieveFile, btrieveFileName)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
-    // If loadFile() fails.
-    if ((status = loadFile(&btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
-    // If createIndex() fails.
-    if ((status = createIndex(&btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
-    // If retrieveRecord() fails.
-    if ((status = retrieveRecord(&btrieveFile, &key)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
-    // If closeFile() fails.
-    if ((status = closeFile(&btrieveClient, &btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
-     //If deleteFile() fails.
-    if ((status = deleteFile(&btrieveClient)) != Btrieve::STATUS_CODE_NO_ERROR)
-    {
-        goto leave;
-    }
 leave:
     // If there wasn't a failure.
     if (status == Btrieve::STATUS_CODE_NO_ERROR)
