@@ -87,7 +87,9 @@ addRecordToInfoFile(BtrieveFile* btrieveFile, string exeName, string dateTime, s
         printf("Error: bad value! Cannot continue:%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
     }
-    exeName = ForceKeyLengthTo5(exeName);
+    if (exeName.length() < 5) {
+        exeName = ForceKeyLengthTo5(exeName);
+    }
     executableInfo record;
     sprintf(record.exeName,"%s",exeName.c_str());
     sprintf(record.dateTime, "%s",dateTime.c_str());
