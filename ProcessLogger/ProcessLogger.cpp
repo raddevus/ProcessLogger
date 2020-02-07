@@ -66,6 +66,16 @@ bool ValidateStructLengths(string exeName, string dateTime, string userName) {
     return true;
 }
 
+string ForceKeyLengthTo5(string key) {
+    while (key.length() < 5) {
+        key += key;
+    }
+    if (key.length() > 5) {
+        key = key.substr(0, 5);
+    }
+    return key;
+}
+
 static Btrieve::StatusCode
 addRecordToInfoFile(BtrieveFile* btrieveFile, string exeName, string dateTime, string userName)
 {
@@ -77,7 +87,7 @@ addRecordToInfoFile(BtrieveFile* btrieveFile, string exeName, string dateTime, s
         printf("Error: bad value! Cannot continue:%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
     }
-
+    exeName = ForceKeyLengthTo5(exeName);
     executableInfo record;
     sprintf(record.exeName,"%s",exeName.c_str());
     sprintf(record.dateTime, "%s",dateTime.c_str());
@@ -120,10 +130,12 @@ createInfoFile(BtrieveClient* btrieveClient, const char* fileName)
         goto leave;
     }
     // If FileCreate() fails.
-    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, fileName, Btrieve::CREATE_MODE_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = btrieveClient->FileCreate(&btrieveFileAttributes, fileName, Btrieve::CREATE_MODE_NO_OVERWRITE)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
-        goto leave;
+        if (status != Btrieve::STATUS_CODE_FILE_ALREADY_EXISTS) {
+            printf("Error: BtrieveClient::FileCreate():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
+            goto leave;
+        }
     }
 leave:
     return status;
@@ -136,7 +148,7 @@ createInfoIndex(BtrieveFile* btrieveFile)
     BtrieveIndexAttributes btrieveIndexAttributes;
     BtrieveKeySegment btrieveKeySegment;
     // If SetField() fails.
-    if ((status = btrieveKeySegment.SetField(0, 1, Btrieve::DATA_TYPE_LSTRING)) != Btrieve::STATUS_CODE_NO_ERROR)
+    if ((status = btrieveKeySegment.SetField(0, 5, Btrieve::DATA_TYPE_LSTRING)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
         printf("Error: BtrieveKeySegment::SetField():%d:%s.\n", status, Btrieve::StatusCodeToString(status));
         goto leave;
@@ -162,8 +174,10 @@ retrieveInfoRecord(BtrieveFile* btrieveFile, string key)
 {
     Btrieve::StatusCode status = Btrieve::STATUS_CODE_NO_ERROR;
     executableInfo record;
+    
+    key = ForceKeyLengthTo5(key);
+    
     // If RecordRetrieve() fails.
-
     if (btrieveFile->RecordRetrieve(Btrieve::COMPARISON_EQUAL,
         Btrieve::INDEX_1, key.c_str(), 
         key.size(), 
@@ -235,7 +249,9 @@ int main(int argc, char* argv[])
     
     if ((status = createInfoFile(&btrieveClient, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        goto leave;
+        if (status != Btrieve::STATUS_CODE_FILE_ALREADY_EXISTS) {
+            goto leave;
+        }
     }
     //If openFile() fails.
     if ((status = openFile(&btrieveClient, &btrieveFile, exeInfoFileName.c_str())) != Btrieve::STATUS_CODE_NO_ERROR)
@@ -245,7 +261,9 @@ int main(int argc, char* argv[])
 
     if ((status = createInfoIndex(&btrieveFile)) != Btrieve::STATUS_CODE_NO_ERROR)
     {
-        goto leave;
+        if (status != Btrieve::STATUS_CODE_DUPLICATE_KEY_VALUE) {
+            goto leave;
+        }
     }
 
     if ((status = addRecordToInfoFile(&btrieveFile, processName, getDateTime(), user)) != Btrieve::STATUS_CODE_NO_ERROR)
